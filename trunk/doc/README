@@ -1,0 +1,17 @@
+地址本数据的访问方式
+
+a. 每一个地址本数据库可以同时和多个设备同步，就是说一个 sqlite 文件可能对应多个 mapping 信息文件
+
+b. 缺省使用的 sqlite 文件为 sqlite/local.sqlite, 对应的 mapping 文件存储在 mapping/sqlite/local 目录下
+
+c. 计划 thunderbird 相关的 mapping 文件存储在 mapping/thunderbird/profileName 目录下
+
+d. 数据主目录为 "C:\Documents and Settings\username\Application Data\pymobilesync"，就是说 mapping 和 sqlite 目录均是在这个目录的子目录
+
+
+和手机同步的时候首先查看当前使用的 sqlite 是否已经和该手机同步过。
+1. 如果已经同步，则开始自动同步；自动同步失败，则执行慢同步
+2. 如果没有和任何设备同步过，则执行慢同步过程
+3. 如果已经和非当前连接的手机同步，则查询当前连接手机是否有同步过的 sqlite
+ 3.a 如果存在，提示用户将自动打开该文件执行自动同步
+ 3.b 否则，执行慢同步

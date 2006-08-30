@@ -20,6 +20,9 @@ if __name__ == '__main__':
 
     obexobject.connect('IRMC-SYNC')
     ret = obexobject.handle_input()
+    if ret == False:
+        print 'connect IRMC-SYNC error'
+        exit
 
     #obexobject.getfile("telecom/devinfo.txt")
     #print obexobject.handle_getfile()

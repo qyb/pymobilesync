@@ -6,8 +6,21 @@
 
 import wx
 
+import os.path
+
+def testfile(filepath):
+    if os.path.exists(filepath) == True:
+        return True
+    path = os.path.split(filepath)
+    try:
+        os.makedirs(path[0])
+    except:
+        pass
+    return False
+    
+        
 from sqlitepb import *
-pbfile = '004601012106440-449117B5.sqlite'
+default_pbfile = 'sqlite/local.sqlite'
 
 class MyListCtrl(wx.ListCtrl):
     def OnGetItemText(self, item, col):
@@ -25,8 +38,8 @@ class MyListCtrl(wx.ListCtrl):
             return 'NA'
         
     def __init__(self, parent):
-        self.sortlist = [ ['1','2','3','4','5'],['6','7','8','9','10'] ]
-        self.pb = sqlitepb(pbfile)
+        testfile(default_pbfile) #create directory if not exist
+        self.pb = sqlitepb(default_pbfile)
         self.addrlist = self.pb.fetchall()
         self.pb.close()
         wx.ListCtrl.__init__(self, parent, -1, size=(700,480),
@@ -44,7 +57,57 @@ class MyListCtrl(wx.ListCtrl):
         self.SetItemCount(len(self.addrlist))
         return
 
-    
+class ContactDialog(wx.Dialog):
+    args = ["First Name:",
+        "Last Name:",
+        "Home Phone:",
+        "Work Phone:",
+        "Mobile Phone:",
+        "Email Addr:",
+        "Title: ",
+        "Organization: "]
+    text = []
+
+    def __init__(self, parent, ID, title, size=wx.DefaultSize, pos=wx.DefaultPosition,
+                 style=wx.DEFAULT_DIALOG_STYLE
+                 ):
+        
+        pre = wx.PreDialog()
+        pre.SetExtraStyle(wx.DIALOG_EX_CONTEXTHELP)
+        pre.Create(parent, ID, title, pos, size, style)
+        self.PostCreate(pre)
+        sizer = wx.BoxSizer(wx.VERTICAL)
+
+        for arg in self.args:
+            box = wx.BoxSizer(wx.HORIZONTAL)
+            label = wx.StaticText(self, -1, arg)
+            box.Add(label, 0, wx.ALIGN_CENTRE|wx.ALL, 5)
+            text = wx.TextCtrl(self, -1, "", size=(80,-1))
+            self.text.append(text)
+            box.Add(text, 1, wx.ALIGN_CENTRE|wx.ALL, 5)
+            sizer.Add(box, 0, wx.GROW|wx.ALIGN_CENTER_VERTICAL|wx.ALL, 5)
+
+        btnsizer = wx.StdDialogButtonSizer()
+        btn = wx.Button(self, wx.ID_OK)
+        btn.SetDefault()
+        btnsizer.AddButton(btn)
+        btn = wx.Button(self, wx.ID_CANCEL)
+        btn.SetDefault()
+        btnsizer.AddButton(btn)
+        btnsizer.Realize()
+        sizer.Add(btnsizer, 0, wx.ALIGN_CENTER_VERTICAL|wx.ALL, 5)
+
+        self.SetSizer(sizer)
+        sizer.Fit(self)
+
+    def GetValue(self):
+        ret = {}
+        i = 0
+        for arg in self.args:
+            ret[arg] = self.text[i].GetValue()
+            i+=1
+        return ret
+        
 class MyFrame(wx.Frame):
     """
     This is MyFrame.  It just shows a few controls on a wxPanel,
@@ -70,6 +133,17 @@ class MyFrame(wx.Frame):
 
         # and put the menu on the menubar
         menuBar.Append(menu, "&File")
+
+        addr_menu = wx.Menu()
+        addr_menu.Append(101, "New Contact")
+        self.Bind(wx.EVT_MENU, self.newContact, id=101)
+        menuBar.Append(addr_menu, "&Contact")
+
+        sync_menu = wx.Menu()
+        sync_menu.Append(201, "Sync with IR(Ericsson/Siemens)")
+        self.Bind(wx.EVT_MENU, self.syncIRMC, id=201)
+        #sync_menu.Append(202, "Sync with IR(Nokia)")
+        menuBar.Append(sync_menu, "&Sync")
         self.SetMenuBar(menuBar)
 
         self.CreateStatusBar()
@@ -114,6 +188,19 @@ class MyFrame(wx.Frame):
     def OnFunButton(self, evt):
         """Event handler for the button click."""
         print "Having fun yet?"
+
+    def newContact(self, event):
+        dlg = ContactDialog(self, -1, "ttt", size=(350, 200), style = wx.DEFAULT_DIALOG_STYLE)
+        dlg.CenterOnScreen()
+        val = dlg.ShowModal()
+        if val == wx.ID_OK:
+            print dlg.GetValue()
+
+        dlg.Destroy()
+        return
+
+    def syncIRMC(self, event):
+        return
 
 
 class MyApp(wx.App):
