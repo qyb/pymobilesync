@@ -1,5 +1,5 @@
 from struct import *
-from socket import *
+from _irsocket import *
 import os
 
 def firstHint(hint):
@@ -38,7 +38,7 @@ def secondHint(hint):
 
 class irda:
     def __init__(self):
-        self.irda_socket = socket(AF_IRDA, SOCK_STREAM)
+        self.irda_socket = socket()
         self.timeout = 10
 
     def discover(self, hints=None):
@@ -75,7 +75,7 @@ class irda:
             service = 'IrDA:IrCOMM'
         self.irda_socket.connect((addr, service))
         
-    def disconnect(self):
+    def close(self):
         self.irda_socket.close()
 
     def write(self, data, timeout=10):
@@ -97,4 +97,4 @@ if __name__ == '__main__':
     firstHint(devicelist[0][3])
     secondHint(devicelist[0][4])
     irdaobject.connect('OBEX')
-    irdaobject.disconnect()
+    irdaobject.close()
