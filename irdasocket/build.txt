@@ -1,0 +1,8 @@
+1. build under command line:
+
+ cl /O2 /Ob1 /I "..\Include" /I "..\PC" /D "NDEBUG" /D "_WIN32_WINNT" /D "WIN32" /D "_WINDOWS" /GF /FD /EHsc /MD /Gy /Fp"irsocket.pch" /W3 /c /Zi  /D "_CRT_SECURE_NO_DEPRECATE"  irsocket.c
+ link /OUT:"./_irsocket.pyd" /INCREMENTAL:NO /DLL /DEBUG /PDB:".\./_irsocket.pdb" /SUBSYSTEM:WINDOWS  /IMPLIB:".\_irsocket.lib" /MACHINE:X86 ws2_32.lib kernel32.lib ".\python24.lib" ".\irsocket.obj"
+
+2. create Python extenion package by distutils
+
+ setup.py bdist_wininst
