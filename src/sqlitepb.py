@@ -32,22 +32,44 @@ class sqlitepb:
         self.con.commit()
         self.con.close()
 
+    def escape(self, s):
+        ret = ''
+        for i in s:
+            if i == '\'':
+                ret += '\'\''
+            else:
+                ret += i
+        return ret
+
+    def updateSQL(self, orig_str, field, value):
+        s = field + "='" + self.escape(value) + "'"
+        #s = field + "='" + value + "'"
+        if orig_str == '':
+            return s
+        return orig_str + ',' + s
+
     def insert(self, data):
         self.cur.execute("insert into localpb (                     \
                          surname, firstname, email, mobile, home,   \
                          work, addr, org, title, birthday, category \
                          ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", data)
         rowid = self.cur.lastrowid;
-        return str(rowid)
+        return rowid
 
     def delete(self, rowid):
-        self.cur.execute("delete from localpb where localpb_id=" + rowid)
+        self.cur.execute("delete from localpb where localpb_id=" + str(rowid))
         return True
 
     def update(self, rowid, cmd):
-        self.cur.execute("update localpb set " + cmd + " where localpb_id=" + rowid)
+        query_string = "update localpb set " + cmd + " where localpb_id=" + str(rowid)
+        print query_string
+        self.cur.execute(query_string)
         return True
     
+    def fetchrow(self, rowid):
+        self.cur.execute("select * from localpb where localpb_id=" + str(rowid))
+        return self.cur.fetchall()
+        
     def execute(self, cmd):
         self.cur.execute(cmd)
         return True

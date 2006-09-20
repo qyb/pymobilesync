@@ -1,5 +1,6 @@
 from irda import *
 from datetime import *
+from socket import *
 
 OBEX_CMD_CONNECT    = 0x00
 OBEX_CMD_DISCONNECT = 0x01
@@ -21,15 +22,14 @@ class ObexTrans:
     def listen(self):
         return False
 
-    def disconnect(self):
-        return False
-
-
 class ObexIrda(irda, ObexTrans):
 
     def connect(self, addr=None):
         irda.connect(self, 'OBEX', addr)
 
+    def disconnect(self):
+        irda.close(self)
+        
     def handle_input(self):
         return False
 
@@ -88,14 +88,14 @@ class obex:
         cmd = chr(OBEX_ONECMD_DISCONNECT) + pack('h', htons(3))
         return self.transport.write(cmd)
 
-    def getufile(self, filename):
+    def getufilecmd(self, filename):
         header = self.genheader(0x01, filename)
         length = htons(3 + len(header))
         cmd = chr(OBEX_ONECMD_GET) + pack('h', length) + header
         return self.transport.write(cmd)
 
-    def getfile(self, filename):
-        return self.getufile(filename.encode('utf-16be'))
+    def getfilecmd(self, filename):
+        return self.getufilecmd(filename.encode('utf-16be'))
 
     def _parse_header(self, data):
         header = []
@@ -156,7 +156,7 @@ class obex:
         self.handle_input()
         self.transport_disconnect()
 
-    def handle_getfile(self):
+    def handle_getfilecmd(self):
         data = self.handle_input()
         headers = self.parse_header(data[2])
         while data[0] == 0x90:
@@ -175,33 +175,43 @@ class obex:
                 ret += header[2]
                 break
         return ret
+
+    def getfile(self, filename):
+        self.getfilecmd(filename)
+        ret = self.handle_getfilecmd()
+        return self.parse_file(ret)
+
+    def handle_connect(self):
+        ret = self.handle_input()
+        if ret == False:
+            self.disconnect()
+            self.handle_input()
+            self.transport_disconnect()
+            return False
+        return True
             
 if __name__ == '__main__':
     obexobject = obex()
     obexobject.transport = ObexIrda()
-
+    
     obexobject.transport_connect()
-
-    obexobject.connect('IRMC-SYNC')
-    ret = obexobject.handle_input()
-    if ret == False:
-        print 'obex IRMC-SYNC error'
-        obexobject.disconnect()
-        ret = obexobject.handle_input()
-        print 'Exit', ret
-        obexobject.transport_disconnect()
+    
+    #obexobject.connect('IRMC-SYNC')
+    obexobject.connect('')
+    if obexobject.handle_connect() == False:
+        print 'fetch devinfo error'
         exit
 
-    obexobject.getfile("telecom/devinfo.txt")
-    
-    #ret = obexobject.handle_input()
-    #print obexobject.parse_header(ret[2])
-    ret = obexobject.handle_getfile()
-    print obexobject.parse_file(ret)
-    
-
+    print obexobject.getfile("telecom/pb/info.log")
     obexobject.disconnect()
-    ret = obexobject.handle_input()
-    print ret
+    obexobject.handle_input()
+
+    obexobject.connect('IRMC-SYNC')
+    if obexobject.handle_connect() == False:
+        print 'obex IRMC-SYNC error'
+        exit
+    
+    obexobject.disconnect()
+    obexobject.handle_input()
 
     obexobject.transport_disconnect()
