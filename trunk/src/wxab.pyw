@@ -6,21 +6,7 @@
 
 import wx
 
-import os.path
-
-def testfile(filepath):
-    if os.path.exists(filepath) == True:
-        return True
-    path = os.path.split(filepath)
-    try:
-        os.makedirs(path[0])
-    except:
-        pass
-    return False
-    
-        
-from sqlitepb import *
-default_pbfile = 'sqlite/local.sqlite'
+import util
 
 class MyListCtrl(wx.ListCtrl):
     def OnGetItemText(self, item, col):
@@ -38,10 +24,10 @@ class MyListCtrl(wx.ListCtrl):
             return 'NA'
         
     def __init__(self, parent):
-        testfile(default_pbfile) #create directory if not exist
-        self.pb = sqlitepb(default_pbfile)
-        self.addrlist = self.pb.fetchall()
-        self.pb.close()
+        util.init()
+        pb = util.sqlite_init('local')
+        self.addrlist = pb.fetchall()
+        pb.close()
         wx.ListCtrl.__init__(self, parent, -1, size=(700,480),
                              style=wx.LC_REPORT|wx.LC_VIRTUAL|wx.LC_HRULES|wx.LC_VRULES)
         self.InsertColumn(0, "Name")
@@ -55,36 +41,158 @@ class MyListCtrl(wx.ListCtrl):
         self.SetColumnWidth(3, 120)
         self.SetColumnWidth(4, 120)
         self.SetItemCount(len(self.addrlist))
+
+        self.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.OnItemRightClick)
+        self.Bind(wx.EVT_LIST_ITEM_SELECTED, self.OnItemSelected)
+        self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.OnModifyOne)
+        self.Bind(wx.EVT_MENU, self.OnRemoveOne, id=301)
+        self.Bind(wx.EVT_MENU, self.OnModifyOne, id=302)
+        return
+
+    def OnItemSelected(self, event):
+        self.currentItem = event.m_itemIndex
+        return
+    
+    def OnItemRightClick(self, event):
+        self.currentItem = event.m_itemIndex
+        menu = wx.Menu()
+        menu.Append(301, "remove")
+        menu.Append(302, "modify")
+        self.PopupMenu(menu)
+        menu.Destroy()
+        return
+
+    def OnModifyOne(self, event):
+        dlg = ContactDialog(self, -1, "Modify", size=(350, 200), style = wx.DEFAULT_DIALOG_STYLE)
+        dlg.setDict(self.addrlist[self.currentItem])
+        dlg.showDlg()
+        dlg.CenterOnScreen()
+        val = dlg.ShowModal()
+        if val == wx.ID_OK:
+            #print dlg.GetValue()
+            if dlg.VerifyInput() == True:
+                self.updateAddr(dlg.GetValue())
+            else:
+                msgDlg = wx.MessageDialog(self, 'Need Name', 'Error',
+                                          wx.OK | wx.ICON_INFORMATION #wx.YES_NO | wx.NO_DEFAULT | wx.CANCEL | wx.ICON_INFORMATION
+                                          )
+                msgDlg.ShowModal()
+                msgDlg.Destroy()
+
+        dlg.Destroy()
+        return
+
+    def OnRemoveOne(self, event):
+        addr_entry = self.addrlist[self.currentItem]
+        Msg = "Do you want remove the address entry of '%s %s' ?" % \
+              (addr_entry[3], addr_entry[2])
+        msgDlg = wx.MessageDialog(self, Msg, 'Confirm', wx.OK | wx.ICON_INFORMATION | wx.CANCEL)
+        val = msgDlg.ShowModal()
+        if val == wx.ID_OK:
+            pb = util.sqlite_init('local')
+            pb.delete(addr_entry[0])
+            self.addrlist = pb.fetchall()
+            pb.close()
+            self.SetItemCount(len(self.addrlist))
+            #print 1, self.addrlist[self.currentItem][0]
+
+        msgDlg.Destroy()
+        return
+
+    def updateAddr(self, data):
+        addr_entry = self.addrlist[self.currentItem]
+        update_string = ''
+        pb = util.sqlite_init('local')
+        if data["First Name:"] != addr_entry[3]:
+            update_string = pb.updateSQL(update_string, 'firstname', data["First Name:"])
+        if data["Last Name:"] != addr_entry[2]:
+            update_string = pb.updateSQL(update_string, 'surname', data["Last Name:"])
+        if data["Home Phone:"] != addr_entry[6]:
+            update_string = pb.updateSQL(update_string, 'home', data["Home Phone:"])
+        if data["Work Phone:"] != addr_entry[7]:
+            update_string = pb.updateSQL(update_string, 'work', data["Work Phone:"])
+        if data["Mobile Phone:"] != addr_entry[5]:
+            update_string = pb.updateSQL(update_string, 'mobile', data["Mobile Phone:"])
+        if data["Email Addr:"] != addr_entry[4]:
+            update_string = pb.updateSQL(update_string, 'email', data["Email Addr:"])
+        if data["Title:"] != addr_entry[9]:
+            update_string = pb.updateSQL(update_string, 'title', data["Title:"])
+        if data["Organization:"] != addr_entry[10]:
+            update_string = pb.updateSQL(update_string, 'org', data["Organization:"])
+        if update_string != '':
+            pb.update(addr_entry[0], update_string)
+            self.addrlist = pb.fetchall()
+        pb.close()
+        self.RefreshItem(self.currentItem)
+        return
+    
+    def insertAddr(self, data):
+        pb = util.sqlite_init('local')
+        pb.insert([data["Last Name:"], \
+                        data["First Name:"], \
+                        data["Email Addr:"], \
+                        data["Mobile Phone:"], \
+                        data["Home Phone:"], \
+                        data["Work Phone:"], \
+                        "", \
+                        data["Organization:"], \
+                        data["Title:"], \
+                        "", \
+                        ""])
+        self.addrlist = pb.fetchall()
+        pb.close()
+        self.SetItemCount(len(self.addrlist))
         return
 
 class ContactDialog(wx.Dialog):
-    args = ["First Name:",
-        "Last Name:",
-        "Home Phone:",
-        "Work Phone:",
-        "Mobile Phone:",
-        "Email Addr:",
-        "Title: ",
-        "Organization: "]
-    text = []
+    args_list = ["First Name:",
+                 "Last Name:",
+                 "Home Phone:",
+                 "Work Phone:",
+                 "Mobile Phone:",
+                 "Email Addr:",
+                 "Title:",
+                 "Organization:"]
+
 
     def __init__(self, parent, ID, title, size=wx.DefaultSize, pos=wx.DefaultPosition,
                  style=wx.DEFAULT_DIALOG_STYLE
                  ):
-        
+        self.args_dict = {"First Name:":"",
+                          "Last Name:":"",
+                          "Home Phone:":"",
+                          "Work Phone:":"",
+                          "Mobile Phone:":"",
+                          "Email Addr:":"",
+                          "Title:":"",
+                          "Organization:":""}
+        self.textClist = []
         pre = wx.PreDialog()
         pre.SetExtraStyle(wx.DIALOG_EX_CONTEXTHELP)
         pre.Create(parent, ID, title, pos, size, style)
         self.PostCreate(pre)
+
+    def setDict(self, data):
+        self.args_dict["First Name:"] = data[3]
+        self.args_dict["Last Name:"] = data[2]
+        self.args_dict["Home Phone:"] = data[6]
+        self.args_dict["Work Phone:"] = data[7]
+        self.args_dict["Mobile Phone:"] = data[5]
+        self.args_dict["Email Addr:"] = data[4]
+        self.args_dict["Title:"] = data[9]
+        self.args_dict["Organization:"] = data[10]
+        #print data
+        
+    def showDlg(self):
         sizer = wx.BoxSizer(wx.VERTICAL)
 
-        for arg in self.args:
+        for arg in self.args_list:
             box = wx.BoxSizer(wx.HORIZONTAL)
             label = wx.StaticText(self, -1, arg)
             box.Add(label, 0, wx.ALIGN_CENTRE|wx.ALL, 5)
-            text = wx.TextCtrl(self, -1, "", size=(80,-1))
-            self.text.append(text)
-            box.Add(text, 1, wx.ALIGN_CENTRE|wx.ALL, 5)
+            textCtrl = wx.TextCtrl(self, -1, self.args_dict[arg], size=(80,-1))
+            self.textClist.append(textCtrl)
+            box.Add(textCtrl, 1, wx.ALIGN_CENTRE|wx.ALL, 5)
             sizer.Add(box, 0, wx.GROW|wx.ALIGN_CENTER_VERTICAL|wx.ALL, 5)
 
         btnsizer = wx.StdDialogButtonSizer()
@@ -103,10 +211,16 @@ class ContactDialog(wx.Dialog):
     def GetValue(self):
         ret = {}
         i = 0
-        for arg in self.args:
-            ret[arg] = self.text[i].GetValue()
+        for arg in self.args_list:
+            ret[arg] = self.textClist[i].GetValue()
             i+=1
         return ret
+    
+    def VerifyInput(self):
+        if self.textClist[0].GetValue() == '' and self.textClist[1].GetValue() == '':
+            return False
+        else:
+            return True
         
 class MyFrame(wx.Frame):
     """
@@ -169,8 +283,8 @@ class MyFrame(wx.Frame):
         # Use a sizer to layout the controls, stacked vertically and with
         # a 10 pixel border around each
         sizer = wx.BoxSizer(wx.VERTICAL)
-        abTable = MyListCtrl(panel)
-        sizer.Add(abTable, 0, wx.ALL, 0)
+        self.abTable = MyListCtrl(panel)
+        sizer.Add(self.abTable, 0, wx.ALL, 0)
         '''
         sizer.Add(text, 0, wx.ALL, 10)
         sizer.Add(btn, 0, wx.ALL, 10)
@@ -190,11 +304,20 @@ class MyFrame(wx.Frame):
         print "Having fun yet?"
 
     def newContact(self, event):
-        dlg = ContactDialog(self, -1, "ttt", size=(350, 200), style = wx.DEFAULT_DIALOG_STYLE)
+        dlg = ContactDialog(self, -1, "New Contact", size=(350, 200), style = wx.DEFAULT_DIALOG_STYLE)
+        dlg.showDlg()
         dlg.CenterOnScreen()
         val = dlg.ShowModal()
         if val == wx.ID_OK:
-            print dlg.GetValue()
+            #print dlg.GetValue()
+            if dlg.VerifyInput() == True:
+                self.abTable.insertAddr(dlg.GetValue())
+            else:
+                msgDlg = wx.MessageDialog(self, 'Need Name', 'Error',
+                                          wx.OK | wx.ICON_INFORMATION #wx.YES_NO | wx.NO_DEFAULT | wx.CANCEL | wx.ICON_INFORMATION
+                                          )
+                msgDlg.ShowModal()
+                msgDlg.Destroy()
 
         dlg.Destroy()
         return
