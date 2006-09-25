@@ -1,6 +1,14 @@
 import quopri
 
-def parseVstring(vstring, prop):
+def decodeString(vstring, setting):
+    if setting.has_key('ENCODING'):
+        if setting['ENCODING'] == "QUOTED-PRINTABLE":
+            vstring = quopri.decodestring(vstring)
+    if setting.has_key('CHARSET'):
+        vstring = vstring.decode(setting['CHARSET'])
+    return vstring
+
+'''def parseVstring(vstring, prop):
     charset = ''
     encoding = ''
     #print vstring
@@ -62,6 +70,15 @@ def printVCARD(vcard):
         else:
             print '%s:'%i, vcard[i]
 
+def getSetting(s):
+    ret = {}
+    x = s.split(';')
+    for y in x:
+        z = y.split('=')
+        if len(z) == 2:
+            ret[z[0]] = z[1]
+    return ret
+'''
 def parseVCARD(src):
     vcard = {}
     #vcard['tel'] = []
@@ -69,24 +86,65 @@ def parseVCARD(src):
     lines = src.splitlines()
     #print lines
     for line in lines:
-        if line == "BEGIN:VCARD" or line == "END:VCARD" or line[:8] == "VERSION:":
+        line = line.split(':')
+        keylist = line[0].split(';')
+        setting = {}
+        for x in keylist:
+            y = x.split('=')
+            if len(y) == 2:
+                setting[y[0]] = y[1]
+        key = keylist[0]
+        valuelist = line[1].split(';')
+        value = valuelist[0]
+        
+        if key == "BEGIN" or key == "END" or key == "VERSION":
             continue
-        if line[:2] == "N:":
-            name = line[2:]
-            vcard['name'] = name.split(';')
-        elif line[:2] == "N;":
-            name = line[2:]
-            vcard['name'] = _parseString(name)
+        if key == "N":
+            vcard['name'] = [u'', u'']
+            vcard['name'][0] = decodeString(valuelist[0], setting)
+            if len(valuelist) == 2:
+                vcard['name'][1] = decodeString(valuelist[1], setting)
+        elif key == "TEL":
+            vcard[keylist[1]] = value
+        elif key == "ORG":
+            vcard['org'] = decodeString(value, setting)
+        elif key == "EMAIL":
+            vcard['email'] = value
+        elif key == "X-IRMC-LUID":
+            vcard['luid'] = value
+        elif key == "X-ESI-CATEGORIES":
+            vcard['category'] = decodeString(value, setting)
+        elif key == "BDAY":
+            vcard['birthday'] = value
+        elif key == "TITLE":
+            vcard['title'] = decodeString(value, setting)
+        else:
+            print line
+            pass
+        '''if line == "BEGIN:VCARD" or line == "END:VCARD" or line[:8] == "VERSION:":
+            continue
+        if line[0] == "N":
+            x = line.split(':')
+            name = x[1].split(';')
+            setting = getSetting(x[0])
+            vcard['name'] = [u'', u'']
+            vcard['name'][0] = decodeString(name[0], setting)
+            if len(name) == 2:
+                vcard['name'][1] = decodeString(name[1], setting)
         elif line[:4] == "TEL;":
             #tel = line[4:]
             #vcard['tel'].append(tel)
             tel = line[4:].split(':')
             vcard[tel[0]] = tel[1]
-        elif line[:4] == "ORG;":
-            org = line[4:]
-            vcard['org'] = parseString(org)
-        elif line[:4] == "ORG:":
-            vcard['org'] = line[4:]
+        elif line[:3] == "ORG":
+            x = line.split(':')
+            setting = getSetting(x[0])
+            vcard['org'] = decodeString(x[1], setting)
+        #elif line[:4] == "ORG;":
+        #    org = line[4:]
+        #    vcard['org'] = parseString(org)
+        #elif line[:4] == "ORG:":
+        #    vcard['org'] = line[4:]
         elif line[:14] == "EMAIL;INTERNET":
             ### 'EMAIL;INTERNET;PREF:' or 'EMAIL;INTERNET:'
             email = line[14:]
@@ -103,8 +161,8 @@ def parseVCARD(src):
         elif line[:5] == "TITLE":
             vcard['title'] = parseString(line[6:])
         else:
-            #print line
-            pass
+            print line
+            pass'''
 
     #printVCARD(vcard); print ""
     return vcard
@@ -127,9 +185,18 @@ def parseVCF(src):
     return vcardlist
             
 if __name__ == "__main__":
-    vfile = "C:\\vcf\\qyb_b.vcf"
+    #vfile = "qyb_b.vcf"
+    vfile = "qyt.vcf"
     #vfile = "C:\\vcf\\Whole Phonebook.vcf"
     x = file(vfile)
     y = parseVCF(x.read())
-    print y
+
+    for i in y:
+        print '--------------------'
+        for j in i:
+            if j == 'name':
+                print j, i[j][0], i[j][1]
+            else:
+                print j, i[j]
+    #print y
     x.close()

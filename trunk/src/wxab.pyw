@@ -179,9 +179,9 @@ class ContactDialog(wx.Dialog):
         self.args_dict["Work Phone:"] = data[7]
         self.args_dict["Mobile Phone:"] = data[5]
         self.args_dict["Email Addr:"] = data[4]
-        self.args_dict["Title:"] = data[9]
-        self.args_dict["Organization:"] = data[10]
-        #print data
+        self.args_dict["Title:"] = data[10]
+        self.args_dict["Organization:"] = data[9]
+        print data
         
     def showDlg(self):
         sizer = wx.BoxSizer(wx.VERTICAL)
