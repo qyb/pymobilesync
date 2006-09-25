@@ -17,10 +17,10 @@ class sqlitepb:
                     home TEXT,                                  \
                     work TEXT,                                  \
                     addr TEXT,                                  \
+                    org TEXT,                                   \
                     title TEXT,                                 \
                     birthday TEXT,                              \
-                    category TEXT,                              \
-                    org TEXT                                    \
+                    category TEXT                               \
                     )")
 
     def fetchall(self):
